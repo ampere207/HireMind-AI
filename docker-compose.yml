@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: hiremind-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: hiremind
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: hiremind-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: ../../docker/api.Dockerfile
+    container_name: hiremind-api
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/hiremind
+      - REDIS_URL=redis://redis:6379/0
+      - APP_ENV=production
+      - LOG_LEVEL=INFO
+      - CANDIDATE_IMPORT_CHUNK_SIZE=2000
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  celery_worker:
+    build:
+      context: ./apps/api
+      dockerfile: ../../docker/celery.Dockerfile
+    container_name: hiremind-celery
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/hiremind
+      - REDIS_URL=redis://redis:6379/0
+      - APP_ENV=production
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: ../../docker/web.Dockerfile
+    container_name: hiremind-web
+    tty: true
+    stdin_open: true
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - CI=true
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:

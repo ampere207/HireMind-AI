@@ -1,0 +1,37 @@
+# Next.js and Node.js
+node_modules/
+.next/
+out/
+build/
+npm-debug.log*
+
+# Python build and virtual environment
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+
+# Local configuration and runtime logs
+.env
+logs/
+*.log
+
+# Databases and data directory contents (except directory placeholders)
+pgdata/
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+data/embeddings/*
+!data/embeddings/.gitkeep
+
+# IDEs and System files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
