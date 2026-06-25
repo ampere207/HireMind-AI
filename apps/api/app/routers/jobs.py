@@ -56,7 +56,11 @@ def run_job_ranking(job_id: int, db: Session = Depends(get_db)):
     if not job:
         raise HTTPException(status_code=404, detail="Job description not found")
     
-    # In Phase 1, we just record a pending run in the database
     run = JobRepository.create_run(db, job_id)
-    app_logger.info(f"Created Ranking Run {run.id} for Job ID {job_id}")
+    
+    # Trigger Celery Background Task
+    from app.tasks.tasks import run_ranking_pipeline_task
+    task = run_ranking_pipeline_task.delay(run.id)
+    
+    app_logger.info(f"Created and triggered Ranking Run {run.id} for Job ID {job_id} (Celery task: {task.id})")
     return run

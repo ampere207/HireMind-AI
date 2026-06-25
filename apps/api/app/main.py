@@ -3,7 +3,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.config.config import settings
 from app.database.database import engine, Base
-from app.routers import health, candidates, jobs, dashboard, tasks, dataset
+from app.routers import health, candidates, jobs, dashboard, tasks, dataset, rank
 from app.utils.logging import app_logger
 
 # Run DB migrations/initialization on startup (for simplicity in Phase 1 setup)
@@ -53,6 +53,7 @@ app.include_router(jobs.router)
 app.include_router(dashboard.router)
 app.include_router(tasks.router)
 app.include_router(dataset.router)
+app.include_router(rank.router)
 
 @app.get("/")
 def read_root():

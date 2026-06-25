@@ -43,6 +43,8 @@ class RankingRun(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     job_id = Column(Integer, ForeignKey("job_descriptions.id", ondelete="CASCADE"), nullable=False)
     status = Column(String, default="PENDING", nullable=False) # PENDING, RUNNING, COMPLETED, FAILED
+    results_json = Column(JSONB, nullable=True) # Top 100 candidates shortlist
+    error_message = Column(Text, nullable=True) # Error messages if failed
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
 
     job = relationship("JobDescription", back_populates="runs")

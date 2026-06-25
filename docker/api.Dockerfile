@@ -19,6 +19,9 @@ RUN uv pip install --system -r requirements.txt
 # Copy backend codebase
 COPY . .
 
+# Pre-cache NLP and Hugging Face models
+RUN python download_models.py
+
 # Expose API port
 EXPOSE 8000
 

@@ -51,7 +51,9 @@ export interface JobDescription {
 export interface RankingRun {
   id: number;
   job_id: number;
-  status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
+  status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "PARSING_JD" | "RETRIEVING" | "ENGINEERING_FEATURES" | "RERANKING" | "EXPLAINING";
+  results_json?: any[];
+  error_message?: string;
   created_at: string;
 }
 
@@ -181,4 +183,17 @@ export const api = {
     
   getTaskStatus: (id: string) =>
     apiFetch<BackgroundTask>(`/tasks/${id}`),
+
+  // Rankings Engine
+  getRankings: (jobId?: number, skip = 0, limit = 50) => {
+    const query = jobId ? `?job_id=${jobId}&skip=${skip}&limit=${limit}` : `?skip=${skip}&limit=${limit}`;
+    return apiFetch<RankingRun[]>(`/rank${query}`);
+  },
+  getRanking: (runId: number) => apiFetch<RankingRun>(`/rank/${runId}`),
+  createRanking: (title: string, description: string, weights?: Record<string, number>, sync = false) =>
+    apiFetch<RankingRun>(`/rank?sync=${sync}`, {
+      method: "POST",
+      body: JSON.stringify({ title, description, weights }),
+    }),
+  getExportUrl: (runId: number) => `${API_BASE_URL}/rank/${runId}/export`,
 };

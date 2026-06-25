@@ -71,6 +71,8 @@ class RankingRunResponse(BaseModel):
     id: int
     job_id: int
     status: str
+    results_json: Optional[List[Dict[str, Any]]] = None
+    error_message: Optional[str] = None
     created_at: datetime
 
     class Config:
