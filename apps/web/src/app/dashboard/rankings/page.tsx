@@ -15,6 +15,7 @@ import {
   X
 } from "lucide-react";
 import { api, JobDescription, RankingRun } from "@/lib/api";
+import { useToast } from "@/components/Toast";
 import { 
   Radar, 
   RadarChart, 
@@ -50,6 +51,32 @@ export default function RankingsPage() {
   // Candidate Drawer
   const [drawerCandidate, setDrawerCandidate] = useState<any | null>(null);
   const [drawerTab, setDrawerTab] = useState<"profile" | "career" | "skills" | "signals" | "explanation">("profile");
+  
+  // Dynamic details fetching
+  const [fullCandidate, setFullCandidate] = useState<any | null>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (!drawerCandidate) {
+      setFullCandidate(null);
+      return;
+    }
+    
+    async function fetchCandidateDetails() {
+      setLoadingDetails(true);
+      try {
+        const details = await api.getCandidate(drawerCandidate.candidate_id);
+        setFullCandidate(details);
+      } catch (err) {
+        console.error("Failed to load candidate details:", err);
+      } finally {
+        setLoadingDetails(false);
+      }
+    }
+    
+    fetchCandidateDetails();
+  }, [drawerCandidate]);
 
   // Load jobs on mount
   useEffect(() => {
@@ -195,12 +222,8 @@ export default function RankingsPage() {
     if (!activeRun?.results_json) return [];
     const counts: Record<string, number> = {};
     activeRun.results_json.forEach((c: any) => {
-      // Look up candidate's parsed skills (e.g. from features list or mock skills)
-      const candSkills = c.features?.required_skills_match > 0 
-        ? ["Python", "FastAPI", "React", "Docker", "Kubernetes", "Redis", "FAISS", "PyTorch"] // sample fallback
-        : ["Python", "Pandas", "SQL"];
-      
-      candSkills.forEach(s => {
+      const candSkills = c.skills || [];
+      candSkills.forEach((s: string) => {
         counts[s] = (counts[s] || 0) + 1;
       });
     });
@@ -254,6 +277,47 @@ export default function RankingsPage() {
     ];
   };
 
+  const handleExportCSV = (run: RankingRun) => {
+    const results = run.results_json || [];
+    
+    if (results.length === 0) {
+      toast({
+        title: "Export Failed",
+        description: "The ranking run shortlist is empty.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const candidateIds = results.map(r => r.candidate_id);
+    const uniqueIds = new Set(candidateIds);
+    if (uniqueIds.size !== candidateIds.length) {
+      toast({
+        title: "Export Warning",
+        description: "Duplicate candidates detected in the shortlist.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const invalidRecords = results.filter(r => !r.candidate_id || r.rank === undefined || !r.score_val || !r.explanation);
+    if (invalidRecords.length > 0) {
+      toast({
+        title: "Export Warning",
+        description: "Shortlist contains records with incomplete evaluations.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    window.location.href = api.getExportUrl(run.id);
+    toast({
+      title: "Export Successful",
+      description: "Shortlist CSV exported successfully.",
+      variant: "success"
+    });
+  };
+
   return (
     <div className="space-y-6">
       {/* Title */}
@@ -268,14 +332,13 @@ export default function RankingsPage() {
         </div>
         
         {activeRun?.status === "COMPLETED" && (
-          <a
-            href={api.getExportUrl(activeRun.id)}
-            download
-            className="flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg border border-purple-500/20 bg-purple-950/40 text-purple-300 hover:bg-purple-900/30 shadow-[0_0_15px_rgba(168,85,247,0.1)] transition"
+          <button
+            onClick={() => handleExportCSV(activeRun)}
+            className="flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg border border-purple-500/20 bg-purple-950/40 text-purple-300 hover:bg-purple-900/30 shadow-[0_0_15px_rgba(168,85,247,0.1)] transition cursor-pointer"
           >
             <Download className="w-4 h-4" />
             Export Submission CSV
-          </a>
+          </button>
         )}
       </div>
 
@@ -769,22 +832,33 @@ export default function RankingsPage() {
               {/* TAB 2: Career History */}
               {drawerTab === "career" && (
                 <div className="space-y-4">
-                  {/* Let's show a mock structured career display or read candidate detail if available */}
-                  <div className="relative border-l-2 border-purple-500/20 pl-4 space-y-6 my-2">
-                    <div className="space-y-1 relative">
-                      <span className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-purple-500" />
-                      <div className="text-[10px] text-zinc-500 font-mono">Present</div>
-                      <h5 className="font-bold text-zinc-200">{drawerCandidate.title}</h5>
-                      <p className="text-[11px] text-zinc-400">Current Role</p>
+                  {loadingDetails ? (
+                    <div className="space-y-3 py-6 animate-pulse">
+                      <div className="h-4 w-3/4 bg-zinc-800 rounded" />
+                      <div className="h-4 w-1/2 bg-zinc-800 rounded" />
+                      <div className="h-4 w-2/3 bg-zinc-800 rounded" />
                     </div>
-                    
-                    <div className="space-y-1 relative">
-                      <span className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-zinc-700" />
-                      <div className="text-[10px] text-zinc-500 font-mono">Prior Tenure</div>
-                      <h5 className="font-bold text-zinc-300">Software Engineer</h5>
-                      <p className="text-[11px] text-zinc-400">Responsible for production software architectures.</p>
+                  ) : fullCandidate?.career_json && fullCandidate.career_json.length > 0 ? (
+                    <div className="relative border-l border-purple-500/20 pl-4 space-y-6 my-2">
+                      {fullCandidate.career_json.map((c: any, index: number) => (
+                        <div key={index} className="space-y-1 relative">
+                          <span className={`absolute -left-[20.5px] top-1 w-2 h-2 rounded-full ${index === 0 ? "bg-purple-500" : "bg-zinc-700"}`} />
+                          <div className="text-[10px] text-zinc-500 font-mono">
+                            {c.start_date} - {c.end_date || "Present"}
+                          </div>
+                          <h5 className="font-bold text-zinc-200 text-sm">{c.role}</h5>
+                          <p className="text-xs text-purple-400/80 font-medium">{c.company}</p>
+                          {c.description && (
+                            <p className="text-xs text-zinc-400 leading-relaxed mt-1 whitespace-pre-wrap">{c.description}</p>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                  </div>
+                  ) : (
+                    <div className="text-zinc-500 text-xs py-10 text-center">
+                      No career history records found.
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -803,6 +877,29 @@ export default function RankingsPage() {
                         </RadarChart>
                       </ResponsiveContainer>
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <span className="text-[10px] text-zinc-500 uppercase tracking-wider block font-semibold">Skills Inventory</span>
+                    {loadingDetails ? (
+                      <div className="flex flex-wrap gap-1.5 animate-pulse">
+                        <div className="h-6 w-16 bg-zinc-800 rounded" />
+                        <div className="h-6 w-20 bg-zinc-800 rounded" />
+                        <div className="h-6 w-14 bg-zinc-800 rounded" />
+                      </div>
+                    ) : fullCandidate?.skills_json ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {fullCandidate.skills_json.map((skill: string) => (
+                          <span key={skill} className="px-2 py-0.5 rounded bg-zinc-900 border border-white/5 text-xs text-zinc-300">
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-zinc-500 text-xs text-center py-2">
+                        No skills inventory found.
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

@@ -16,11 +16,12 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN uv pip install --system -r requirements.txt
 
+# Pre-cache NLP and Hugging Face models
+COPY download_models.py .
+RUN python download_models.py
+
 # Copy codebase
 COPY . .
-
-# Pre-cache NLP and Hugging Face models
-RUN python download_models.py
 
 # Run Celery worker
 CMD ["celery", "-A", "app.core.celery_app", "worker", "--loglevel=info"]

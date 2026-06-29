@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import { useSession, signOut } from "next-auth/react";
 import { 
   LayoutDashboard, 
   Users, 
@@ -11,19 +12,29 @@ import {
   Settings as SettingsIcon, 
   Menu, 
   X, 
-  Activity, 
-  ChevronRight 
+  ChevronRight,
+  LogOut
 } from "lucide-react";
 import { api } from "@/lib/api";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [systemStatus, setSystemStatus] = useState("Checking...");
   const [statusColor, setStatusColor] = useState("bg-yellow-400");
 
+  // Protect route
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login");
+    }
+  }, [status, router]);
+
   // Load system status periodically
   useEffect(() => {
+    if (status !== "authenticated") return;
     async function checkStatus() {
       try {
         const res = await api.getDashboardStats();
@@ -43,7 +54,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     checkStatus();
     const interval = setInterval(checkStatus, 15000);
     return () => clearInterval(interval);
-  }, []);
+  }, [status]);
 
   const navLinks = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -52,6 +63,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { href: "/dashboard/rankings", label: "Rankings", icon: TrendingUp },
     { href: "/dashboard/settings", label: "Settings", icon: SettingsIcon },
   ];
+
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-purple-600 to-cyan-400 animate-spin flex items-center justify-center font-bold text-zinc-950 text-base shadow-[0_0_15px_rgba(168,85,247,0.5)]">
+            HM
+          </div>
+          <span className="text-zinc-500 text-xs font-mono uppercase tracking-widest animate-pulse">Verifying Session...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "unauthenticated") {
+    return null;
+  }
 
   return (
     <div className="flex-1 flex min-h-screen relative bg-zinc-950">
@@ -67,9 +95,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
           <span className="font-semibold tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-zinc-100 to-zinc-400">
             HireMind AI
-          </span>
-          <span className="text-[9px] bg-purple-950 text-purple-300 border border-purple-500/20 px-1.5 py-0.5 rounded font-mono uppercase tracking-widest">
-            P1
           </span>
         </div>
 
@@ -98,9 +123,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           })}
         </nav>
 
-        {/* Sidebar Footer System status */}
-        <div className="p-4 border-t border-white/5 bg-zinc-950/40">
-          <div className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-zinc-900/60 border border-white/5 text-xs text-zinc-400">
+        {/* Sidebar Footer User Profile & System status */}
+        <div className="p-4 border-t border-white/5 bg-zinc-950/40 space-y-3">
+          {session?.user && (
+            <div className="flex items-center justify-between p-2 rounded-lg bg-zinc-900/40 border border-white/5">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-full bg-purple-950 border border-purple-500/30 flex items-center justify-center text-purple-300 font-bold shrink-0">
+                  {session.user.name ? session.user.name[0].toUpperCase() : "U"}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold text-zinc-200 truncate">{session.user.name || "Recruiter"}</div>
+                  <div className="text-[10px] text-zinc-500 truncate">{session.user.email}</div>
+                </div>
+              </div>
+              <button
+                onClick={() => signOut({ callbackUrl: "/login" })}
+                title="Log Out"
+                className="p-1.5 rounded-md hover:bg-rose-500/10 text-zinc-500 hover:text-rose-400 transition-colors shrink-0 cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-zinc-900/60 border border-white/5 text-xs text-zinc-400">
             <span className="flex items-center gap-2">
               <span className={`w-2 h-2 rounded-full ${statusColor}`} />
               System Status
@@ -165,8 +211,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 })}
               </nav>
 
-              <div className="p-4 border-t border-white/5">
-                <div className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-zinc-900/60 border border-white/5 text-xs text-zinc-400">
+              <div className="p-4 border-t border-white/5 space-y-3">
+                {session?.user && (
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-zinc-900/40 border border-white/5">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-full bg-purple-950 border border-purple-500/30 flex items-center justify-center text-purple-300 font-bold shrink-0">
+                        {session.user.name ? session.user.name[0].toUpperCase() : "U"}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold text-zinc-200 truncate">{session.user.name || "Recruiter"}</div>
+                        <div className="text-[10px] text-zinc-500 truncate">{session.user.email}</div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => signOut({ callbackUrl: "/login" })}
+                      title="Log Out"
+                      className="p-1.5 rounded-md hover:bg-rose-500/10 text-zinc-500 hover:text-rose-400 transition-colors shrink-0 cursor-pointer"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-zinc-900/60 border border-white/5 text-xs text-zinc-400">
                   <span className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full ${statusColor}`} />
                     System Status

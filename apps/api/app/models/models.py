@@ -25,15 +25,30 @@ class Candidate(Base):
     )
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    email = Column(String, unique=True, index=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    name = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+
+    jobs = relationship("JobDescription", back_populates="user", cascade="all, delete-orphan")
+    runs = relationship("RankingRun", back_populates="user", cascade="all, delete-orphan")
+
+
 class JobDescription(Base):
     __tablename__ = "job_descriptions"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     title = Column(String, nullable=False)
     description = Column(Text, nullable=False)
     metadata_json = Column(JSONB, name="metadata", nullable=True) # Map db 'metadata' column to 'metadata_json' to avoid python namespace collision
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
 
+    user = relationship("User", back_populates="jobs")
     runs = relationship("RankingRun", back_populates="job", cascade="all, delete-orphan")
 
 
@@ -41,12 +56,14 @@ class RankingRun(Base):
     __tablename__ = "ranking_runs"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     job_id = Column(Integer, ForeignKey("job_descriptions.id", ondelete="CASCADE"), nullable=False)
     status = Column(String, default="PENDING", nullable=False) # PENDING, RUNNING, COMPLETED, FAILED
     results_json = Column(JSONB, nullable=True) # Top 100 candidates shortlist
     error_message = Column(Text, nullable=True) # Error messages if failed
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
 
+    user = relationship("User", back_populates="runs")
     job = relationship("JobDescription", back_populates="runs")
 
 

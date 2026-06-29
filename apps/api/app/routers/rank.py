@@ -1,6 +1,6 @@
 import io
 import csv
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Optional
@@ -9,6 +9,8 @@ from app.database.database import get_db
 from app.schemas.schemas import RankingRunResponse
 from app.repositories.job_repository import JobRepository
 from app.repositories.candidate_repository import CandidateRepository
+from app.core.auth import get_current_user
+from app.models.models import User
 from app.utils.logging import app_logger
 
 router = APIRouter(prefix="/rank", tags=["Ranking Engine"])
@@ -26,6 +28,7 @@ class RetrieveRequest(BaseModel):
 def run_candidate_ranking(
     req: RankRequest,
     sync: bool = Query(False, description="Run synchronously instead of queueing in Celery"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -39,11 +42,12 @@ def run_candidate_ranking(
             db=db,
             title=req.title,
             description=req.description,
+            user_id=current_user.id,
             metadata=req.weights
         )
         
         # 2. Create Ranking Run
-        run = JobRepository.create_run(db, job.id)
+        run = JobRepository.create_run(db, job.id, user_id=current_user.id)
         
         from app.tasks.tasks import run_ranking_pipeline_task
         if sync:
@@ -62,7 +66,11 @@ def run_candidate_ranking(
         raise HTTPException(status_code=500, detail=f"Failed to start ranking run: {str(e)}")
 
 @router.post("/retrieve")
-def retrieve_candidates_only(req: RetrieveRequest, db: Session = Depends(get_db)):
+def retrieve_candidates_only(
+    req: RetrieveRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """
     Retrieves the top k candidate matches (max 2000) semantically from FAISS index.
     """
@@ -107,6 +115,7 @@ def list_ranking_runs(
     job_id: Optional[int] = Query(None, description="Filter runs by Job ID"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -114,33 +123,48 @@ def list_ranking_runs(
     """
     try:
         from app.models.models import RankingRun
-        query = db.query(RankingRun)
+        query = db.query(RankingRun).filter(RankingRun.user_id == current_user.id)
         if job_id is not None:
+            # First check that the job belongs to this user
+            job = JobRepository.get_by_id(db, job_id)
+            if not job or job.user_id != current_user.id:
+                raise HTTPException(status_code=404, detail="Job description not found")
             query = query.filter(RankingRun.job_id == job_id)
+            
         runs = query.order_by(RankingRun.created_at.desc()).offset(skip).limit(limit).all()
         return runs
+    except HTTPException:
+        raise
     except Exception as e:
         app_logger.error(f"Error listing ranking runs: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/{run_id}", response_model=RankingRunResponse)
-def get_ranking_run_details(run_id: int, db: Session = Depends(get_db)):
+def get_ranking_run_details(
+    run_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """
     Fetches the details and shortlisted results of a ranking run.
     """
     run = JobRepository.get_run_by_id(db, run_id)
-    if not run:
+    if not run or run.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Ranking run not found")
     return run
 
 @router.get("/{run_id}/export")
-def export_ranking_run_csv(run_id: int, db: Session = Depends(get_db)):
+def export_ranking_run_csv(
+    run_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """
     Exports the Top 100 candidate shortlist in the exact competition CSV format.
     Fields: candidate_id, rank, score, reasoning
     """
     run = JobRepository.get_run_by_id(db, run_id)
-    if not run:
+    if not run or run.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Ranking run not found")
         
     if run.status != "COMPLETED":

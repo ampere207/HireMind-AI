@@ -1,3 +1,5 @@
+import { getSession } from "next-auth/react";
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export interface Profile {
@@ -81,13 +83,24 @@ export interface DatasetStats {
 // Fetch helper with error handling
 async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options?.headers as Record<string, string> || {}),
+  };
+
+  try {
+    const session = await getSession();
+    if (session && (session as any).accessToken) {
+      headers["Authorization"] = `Bearer ${(session as any).accessToken}`;
+    }
+  } catch (err) {
+    console.warn("Could not retrieve session token for API request:", err);
+  }
+
   try {
     const res = await fetch(url, {
       ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...(options?.headers || {}),
-      },
+      headers,
     });
     if (!res.ok) {
       if (res.status === 204) {

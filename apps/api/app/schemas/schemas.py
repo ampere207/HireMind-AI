@@ -49,6 +49,30 @@ class CandidateResponse(BaseModel):
     class Config:
         from_attributes = True
 
+# User schemas
+class UserCreate(BaseModel):
+    email: str
+    password: str
+    name: Optional[str] = None
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+class UserResponse(BaseModel):
+    id: int
+    email: str
+    name: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str
+    user: UserResponse
+
 # Job schemas
 class JobDescriptionCreate(BaseModel):
     title: str
@@ -57,6 +81,7 @@ class JobDescriptionCreate(BaseModel):
 
 class JobDescriptionResponse(BaseModel):
     id: int
+    user_id: int
     title: str
     description: str
     metadata: Optional[Dict[str, Any]] = Field(None, alias="metadata_json")
@@ -69,6 +94,7 @@ class JobDescriptionResponse(BaseModel):
 # Ranking Run schemas
 class RankingRunResponse(BaseModel):
     id: int
+    user_id: int
     job_id: int
     status: str
     results_json: Optional[List[Dict[str, Any]]] = None

@@ -4,10 +4,11 @@ from typing import List, Optional, Dict, Any
 
 class JobRepository:
     @staticmethod
-    def create(db: Session, title: str, description: str, metadata: Optional[Dict[str, Any]] = None) -> JobDescription:
+    def create(db: Session, title: str, description: str, user_id: int, metadata: Optional[Dict[str, Any]] = None) -> JobDescription:
         db_job = JobDescription(
             title=title,
             description=description,
+            user_id=user_id,
             metadata_json=metadata
         )
         db.add(db_job)
@@ -20,8 +21,8 @@ class JobRepository:
         return db.query(JobDescription).filter(JobDescription.id == job_id).first()
 
     @staticmethod
-    def get_all(db: Session, skip: int = 0, limit: int = 100) -> List[JobDescription]:
-        return db.query(JobDescription).order_by(JobDescription.created_at.desc()).offset(skip).limit(limit).all()
+    def get_all(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> List[JobDescription]:
+        return db.query(JobDescription).filter(JobDescription.user_id == user_id).order_by(JobDescription.created_at.desc()).offset(skip).limit(limit).all()
 
     @staticmethod
     def delete(db: Session, job_id: int) -> bool:
@@ -33,8 +34,8 @@ class JobRepository:
         return False
 
     @staticmethod
-    def create_run(db: Session, job_id: int) -> RankingRun:
-        db_run = RankingRun(job_id=job_id, status="PENDING")
+    def create_run(db: Session, job_id: int, user_id: int) -> RankingRun:
+        db_run = RankingRun(job_id=job_id, user_id=user_id, status="PENDING")
         db.add(db_run)
         db.commit()
         db.refresh(db_run)
@@ -45,9 +46,9 @@ class JobRepository:
         return db.query(RankingRun).filter(RankingRun.id == run_id).first()
 
     @staticmethod
-    def get_runs(db: Session, skip: int = 0, limit: int = 100) -> List[RankingRun]:
-        return db.query(RankingRun).order_by(RankingRun.created_at.desc()).offset(skip).limit(limit).all()
+    def get_runs(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> List[RankingRun]:
+        return db.query(RankingRun).filter(RankingRun.user_id == user_id).order_by(RankingRun.created_at.desc()).offset(skip).limit(limit).all()
 
     @staticmethod
-    def count_runs(db: Session) -> int:
-        return db.query(RankingRun).count()
+    def count_runs(db: Session, user_id: int) -> int:
+        return db.query(RankingRun).filter(RankingRun.user_id == user_id).count()

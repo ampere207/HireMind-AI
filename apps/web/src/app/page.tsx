@@ -2,12 +2,16 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Upload, FileText, Play, Server, Users, Briefcase, Zap, Check } from "lucide-react";
 import { api, DatasetStats } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 
 export default function LandingPage() {
   const { toast } = useToast();
+  const { data: session, status } = useSession();
+  const router = useRouter();
   
   // Job Description form state
   const [jdTitle, setJdTitle] = useState("");
@@ -239,7 +243,7 @@ export default function LandingPage() {
             </div>
 
             <div className="mt-4 pt-4 border-t border-white/5 flex justify-between items-center text-xs text-zinc-500">
-              <span>Platform Version: 1.0.0 (Phase 1)</span>
+              <span>Platform Version: 1.0.0</span>
               <span className="inline-flex items-center gap-1.5 text-cyan-400">
                 <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
                 Database Ingestion Active
@@ -378,18 +382,20 @@ export default function LandingPage() {
                   {isSubmitting ? "Saving..." : "Save Job Description"}
                 </button>
                 
-                {/* Disabled Start Ranking button */}
+                {/* Active Start Ranking button */}
                 <button
                   type="button"
-                  disabled
-                  className="px-4 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400 font-semibold text-sm cursor-not-allowed flex items-center justify-center gap-2 group relative"
-                  title="Ranking Engine will be released in Phase 2"
+                  onClick={() => {
+                    if (status === "authenticated") {
+                      router.push("/dashboard/rankings");
+                    } else {
+                      router.push("/login");
+                    }
+                  }}
+                  className="px-4 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-300 hover:bg-purple-500/20 font-semibold text-sm flex items-center justify-center gap-2 transition cursor-pointer"
                 >
-                  <Play className="w-4 h-4" />
+                  <Play className="w-4 h-4 text-purple-400" />
                   <span className="hidden sm:inline">Start Ranking</span>
-                  <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap bg-zinc-900 border border-zinc-800 text-[10px] text-zinc-400 px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                    Phase 2 Engine
-                  </span>
                 </button>
               </div>
             </form>

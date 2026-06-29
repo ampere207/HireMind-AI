@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.database.database import get_db
 from app.schemas.schemas import CandidateResponse
 from app.repositories.candidate_repository import CandidateRepository
 from app.tasks.tasks import import_candidates_task
+from app.core.auth import get_current_user
+from app.models.models import User
 from app.utils.logging import app_logger
 
 router = APIRouter(prefix="/candidates", tags=["Candidates"])
@@ -26,6 +28,7 @@ def parse_experience_bracket(exp: Optional[str]) -> tuple[Optional[float], Optio
 def get_candidates(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     try:
@@ -44,6 +47,7 @@ def search_candidates(
     experience: Optional[str] = Query(None, description="Experience bracket: '0-2', '3-5', '6-10', '10+'"),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     try:
@@ -70,7 +74,11 @@ def search_candidates(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/{candidate_id}", response_model=CandidateResponse)
-def get_candidate(candidate_id: str, db: Session = Depends(get_db)):
+def get_candidate(
+    candidate_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     candidate = CandidateRepository.get_by_id(db, candidate_id)
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
@@ -81,11 +89,15 @@ class IngestionRequest(BaseModel):
     file_path: Optional[str] = "data/raw/candidates.jsonl"
 
 @router.post("/import")
-def import_candidates(req: IngestionRequest, db: Session = Depends(get_db)):
+def import_candidates(
+    req: IngestionRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     try:
         # Trigger Celery Task
         task = import_candidates_task.delay(req.file_path)
-        app_logger.info(f"Triggered ingestion task {task.id} for path {req.file_path}")
+        app_logger.info(f"Triggered Ingestion task {task.id} for path {req.file_path} by user {current_user.email}")
         return {
             "message": "Candidate ingestion pipeline started in background",
             "task_id": task.id,

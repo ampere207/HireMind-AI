@@ -302,6 +302,7 @@ def run_ranking_pipeline_task(self, run_id: int, weights: dict = None):
                 "location": profile_json.get("location", ""),
                 "score": f"{int(final_score * 100)}%",
                 "score_val": final_score,
+                "skills": cand.skills_json,
                 "fraud_score": feats.fraud_score,
                 "explanation": exp.reasoning,
                 "strengths": exp.strengths,

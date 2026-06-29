@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from redis import Redis
@@ -6,23 +6,27 @@ from app.database.database import get_db
 from app.schemas.schemas import DashboardStatsResponse
 from app.repositories.candidate_repository import CandidateRepository
 from app.repositories.job_repository import JobRepository
+from app.core.auth import get_current_user
+from app.models.models import User
 from app.config.config import settings
 from app.utils.logging import app_logger
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
 @router.get("/stats", response_model=DashboardStatsResponse)
-def get_dashboard_stats(db: Session = Depends(get_db)):
+def get_dashboard_stats(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     try:
-        # 1. Total Candidates count
+        # 1. Total Candidates count (global pool)
         total_candidates = CandidateRepository.count_all(db)
         
-        # 2. Uploaded Jobs count
-        # Just query the count of job descriptions
-        uploaded_jobs = len(JobRepository.get_all(db, skip=0, limit=1000))
+        # 2. Uploaded Jobs count (user-scoped)
+        uploaded_jobs = len(JobRepository.get_all(db, user_id=current_user.id, skip=0, limit=1000))
         
-        # 3. Rankings Generated count
-        rankings_generated = JobRepository.count_runs(db)
+        # 3. Rankings Generated count (user-scoped)
+        rankings_generated = JobRepository.count_runs(db, user_id=current_user.id)
         
         # 4. System Status Diagnostic
         db_healthy = True

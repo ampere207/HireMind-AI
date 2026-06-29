@@ -244,22 +244,26 @@ export default function DashboardOverview() {
           </div>
         </div>
 
-        {/* Sidebar Info Card / Phase 2 Promo */}
+        {/* Sidebar Info Card / Production Ready Overview */}
         <div className="lg:col-span-4 space-y-6">
           <div className="p-6 rounded-xl glass-card bg-gradient-to-br from-zinc-900/60 to-purple-950/20 border-purple-500/10">
             <h4 className="text-sm font-bold text-zinc-200 flex items-center gap-2">
               <Cpu className="w-4.5 h-4.5 text-purple-400 animate-pulse" />
-              Phase 2 Preview: Ranking Engine
+              AI Recruiter Co-Pilot
             </h4>
             <p className="text-xs text-zinc-400 leading-relaxed mt-3">
-              In Phase 2, we will enable AI-powered embeddings using PyTorch, loading candidate profiles and matching job description semantics. Candidates will be ranked based on skills coverage, behavioral loyalty, career progressions, and location constraints.
+              HireMind AI uses deep neural re-ranking, advanced semantic matchers, and timeline fraud detection to rank shortlists. Verify candidates instantly or export custom shortlist CSV reports.
             </p>
-            <div className="mt-5 p-3 rounded-lg bg-purple-950/40 border border-purple-500/20 text-[10px] text-purple-300 font-mono">
-              ✓ Ingest Candidate Dataset (Phase 1)
-              <br />
-              ✓ PostgreSQL GIN Full-Text Index (Phase 1)
-              <br />
-              ⚙ Semantic Embeddings Matcher (Phase 2)
+            <div className="mt-5 p-3 rounded-lg bg-purple-950/40 border border-purple-500/20 text-[10px] text-purple-300 font-mono space-y-1">
+              <div className="flex items-center gap-1.5 text-emerald-400">
+                <span>✓</span> Ingest Candidate Pools
+              </div>
+              <div className="flex items-center gap-1.5 text-emerald-400">
+                <span>✓</span> Stage Job Requirements
+              </div>
+              <div className="flex items-center gap-1.5 text-emerald-400">
+                <span>✓</span> Neural Re-Ranking Pipeline
+              </div>
             </div>
           </div>
         </div>

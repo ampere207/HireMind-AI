@@ -127,7 +127,7 @@ export default function JobDescriptionsPage() {
       const run = await api.runRanking(jobId);
       toast({
         title: "Ranking Run Triggered",
-        description: `Scheduled run ${run.id} in database (PENDING). AI scoring will trigger in Phase 2.`,
+        description: `Scheduled run ${run.id} in database (PENDING). AI scoring is running in background.`,
         variant: "success",
       });
     } catch (err) {
@@ -335,7 +335,7 @@ export default function JobDescriptionsPage() {
                         <Layers className="w-3.5 h-3.5 text-zinc-400" />
                         ID: {selectedJob.id}
                       </span>
-                      <span>Target: Phase 2 AI scoring</span>
+                      <span>Target: AI Scoring Pipeline</span>
                     </div>
                   </>
                 ) : (

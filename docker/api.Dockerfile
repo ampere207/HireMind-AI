@@ -16,11 +16,12 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN uv pip install --system -r requirements.txt
 
+# Pre-cache NLP and Hugging Face models
+COPY download_models.py .
+RUN python download_models.py
+
 # Copy backend codebase
 COPY . .
-
-# Pre-cache NLP and Hugging Face models
-RUN python download_models.py
 
 # Expose API port
 EXPOSE 8000

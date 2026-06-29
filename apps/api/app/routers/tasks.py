@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from typing import List
 from app.database.database import get_db
 from app.schemas.schemas import BackgroundTaskResponse
 from app.repositories.task_repository import TaskRepository
+from app.core.auth import get_current_user
+from app.models.models import User
 from app.utils.logging import app_logger
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
@@ -12,6 +14,7 @@ router = APIRouter(prefix="/tasks", tags=["Tasks"])
 def list_tasks(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     try:
@@ -22,7 +25,11 @@ def list_tasks(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/{task_id}", response_model=BackgroundTaskResponse)
-def get_task_status(task_id: str, db: Session = Depends(get_db)):
+def get_task_status(
+    task_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     task = TaskRepository.get_by_id(db, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
